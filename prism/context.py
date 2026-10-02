@@ -20,7 +20,7 @@ load_dotenv()
 ROOT = Path(__file__).resolve().parents[1]
 SQL_PATH = ROOT / "queries" / "github_context.sql"
 FIXTURES = ROOT / "fixtures"
-DATASET = "Snowflake Public Data (Paid)"
+DATASET = "Snowflake Public Data (Free)"
 _SAFE = re.compile(r"[^A-Za-z0-9._-]+")
 
 

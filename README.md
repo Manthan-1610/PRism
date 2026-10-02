@@ -80,7 +80,7 @@ An earlier version let the large model's verdict win outright. It scored 11/15, 
 
 PRism uses Snowflake for the one thing a single PR can't show: what the author and the repo have been doing across public GitHub.
 
-- **Dataset:** the public GitHub events view `SNOWFLAKE_PUBLIC_DATA_PAID.PUBLIC_DATA.GITHUB_EVENTS`, using `TYPE`, `ACTOR_LOGIN`, `REPO_NAME`, and `CREATED_AT_TIMESTAMP`.
+- **Dataset:** the free public GitHub events view `SNOWFLAKE_PUBLIC_DATA_FREE.PUBLIC_DATA_FREE.GITHUB_EVENTS`, using `TYPE`, `ACTOR_LOGIN`, `REPO_NAME`, and `CREATED_AT_TIMESTAMP`. This listing lags about three months, so a last-7-days count can be 0.
 - **Query:** `queries/github_context.sql` counts `PullRequestEvent` rows for the author and for the repo over the last 7 days. Author and repo are bound as parameters, never formatted into the SQL.
 - **How it's used:** the author's count becomes the `author_pr_events_7d` fact. An author opening 10 or more PRs a week on a tiny diff is one of the cascade's escalation triggers.
 - **Fallback:** each result is cached under `fixtures/`, so the demo runs when Snowflake is unreachable. The page shows whether a result came live (`snowflake`), from the cache (`cache`), or not at all (`unavailable`).
