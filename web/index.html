@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PRism</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <main>
+    <h1>PRism</h1>
+    <form id="triage-form">
+      <label for="pr-url">Pull request URL</label>
+      <input id="pr-url" name="pr_url" type="url" placeholder="https://github.com/owner/repo/pull/1" required>
+      <button id="submit" type="submit">Triage</button>
+    </form>
+    <p id="status" role="status"></p>
+    <section id="result" hidden>
+      <p id="verdict" class="verdict"></p>
+      <ul id="evidence"></ul>
+      <h2>Reply to the contributor</h2>
+      <pre id="reply"></pre>
+      <button id="copy-reply" type="button">Copy reply</button>
+      <h2>Maintainer summary</h2>
+      <p id="summary"></p>
+      <p id="meta"></p>
+    </section>
+  </main>
+  <script src="/static/app.js"></script>
+</body>
+</html>
