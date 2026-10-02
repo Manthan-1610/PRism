@@ -69,10 +69,12 @@ The script scores small-only against the cascade and prints accuracy, mean cost 
 
 | Mode | Accuracy | Mean cost per PR | Escalated |
 | --- | --- | --- | --- |
-| Small model only | 13/15 | $0.0004 | 0 |
-| Cascade | 13/15 | $0.0006 | 3 |
+| Small model only | 10/15 | $0.0005 | 0 |
+| Cascade | 10/15 | $0.0005 | 0 |
 
-On this set the cascade matches the small model's accuracy rather than beating it. Its value is caution: on the 3 PRs where the small model was unsure, a second open model was consulted before the verdict stood. In earlier test runs, the large model tried to upgrade the flawed kornia PR to `ship_it`, and the stricter-only rule kept it at `needs_work`. Both remaining misses are hard cases: a PR whose body claims a reformat while the diff only adds a comment, and a well-explained single-file solution with no tests.
+Re-run on 2026-10-02 with live Snowflake author activity (`source=snowflake` on all 15 rows). On this pass the model was stricter on borderline `ship_it` cases (including the Dolibarr backup demo), so accuracy is below an earlier 13/15 run that used cached or unavailable Snowflake counts. Cascade did not escalate: every small-model confidence stayed at or above 0.6, and no `ship_it` contradicted the measured signals. Both modes still beat the earlier "large model always wins" cascade at **11/15**, which is why escalation remains stricter-only.
+
+Misses on this run: one `needs_work` PR scored `likely_spam`, and four small/issue-linked fixes scored `needs_work` instead of `ship_it`. The hard home-assistant case that previously missed as `needs_work` is now correctly `likely_spam`.
 
 An earlier version let the large model's verdict win outright. It scored 11/15, because Llama 4 Maverick tended to trust a PR's own description. That result is why escalation can now only make verdicts stricter. Qwen 3.5 397B was also tried as the escalation model and timed out on this endpoint.
 
@@ -99,7 +101,9 @@ python skill/prism-triage/scripts/triage.py https://github.com/owner/repo/pull/1
 
 ## Run it
 
-Requires Python 3.11 or newer.
+Requires Python 3.11 or newer, a DigitalOcean model access key, and (for live demos) a GitHub token plus Snowflake trial credentials from the organizers.
+
+### Install
 
 ```powershell
 py -3.11 -m venv .venv
@@ -107,25 +111,50 @@ py -3.11 -m venv .venv
 copy .env.example .env
 ```
 
-Fill in `.env`:
+### `.env` keys
 
-| Key | What it is |
-| --- | --- |
-| `GITHUB_TOKEN` | GitHub token with read access to public repositories |
-| `MODEL_ACCESS_KEY` | DigitalOcean model access key |
-| `SMALL_MODEL`, `LARGE_MODEL` and the four `*_PER_MILLION` prices | Already set in `.env.example` comments; see the models table above |
-| `SNOWFLAKE_*` | Snowflake account, user, password, warehouse, database, schema, and role |
+| Key | Required for | What it is |
+| --- | --- | --- |
+| `MODEL_ACCESS_KEY` | always | DigitalOcean Gradient serverless inference key |
+| `SMALL_MODEL` | always | Open-weight id, e.g. `mistral-3-14B` |
+| `LARGE_MODEL` | always | Open-weight id, e.g. `llama-4-maverick` |
+| `SMALL_INPUT_PER_MILLION` / `SMALL_OUTPUT_PER_MILLION` | cost chips | Dollars per million tokens for the small model |
+| `LARGE_INPUT_PER_MILLION` / `LARGE_OUTPUT_PER_MILLION` | cost chips | Dollars per million tokens for the large model |
+| `GITHUB_TOKEN` | live GitHub fetch | Classic token with read access to public repos |
+| `SNOWFLAKE_ACCOUNT` / `SNOWFLAKE_USER` / `SNOWFLAKE_PASSWORD` | live Snowflake | Trial account from the organizers |
+| `SNOWFLAKE_WAREHOUSE` / `SNOWFLAKE_DATABASE` / `SNOWFLAKE_SCHEMA` / `SNOWFLAKE_ROLE` | live Snowflake | Warehouse and role that can read `SNOWFLAKE_PUBLIC_DATA_FREE` |
+| `PRISM_USE_CACHE` | optional | `1` = read PR payloads from `fixtures/` and skip GitHub |
+| `SNOWFLAKE_DISABLED` | optional | `1` = skip the live query and use `fixtures/context_*.json` |
 
-Start the server and open `http://127.0.0.1:8000`:
+Leave proprietary model ids unused. Model ids and prices come from the DigitalOcean model page; copy them into `.env` rather than hard-coding them.
+
+### Start the server
 
 ```powershell
 .\.venv\Scripts\python.exe -m uvicorn prism.api:app --port 8000
 ```
 
-Without Snowflake or GitHub access, set `PRISM_USE_CACHE=1` and `SNOWFLAKE_DISABLED=1` in `.env`. The 15 labeled PRs in `fixtures/` then run without network calls to GitHub or Snowflake. A DigitalOcean key is still needed for the model.
+Open `http://127.0.0.1:8000`. Link straight to a verdict with `http://127.0.0.1:8000/?pr=<pull request URL>`.
 
-Link straight to a verdict with `http://127.0.0.1:8000/?pr=<pull request URL>`.
+### Cache switches
 
+| Goal | Settings |
+| --- | --- |
+| Full live path (GitHub + Snowflake + models) | `PRISM_USE_CACHE=0`, `SNOWFLAKE_DISABLED=0` |
+| Fast demo / offline GitHub, live Snowflake | `PRISM_USE_CACHE=1`, `SNOWFLAKE_DISABLED=0` |
+| Fully offline except the model | `PRISM_USE_CACHE=1`, `SNOWFLAKE_DISABLED=1` |
+
+With both cache switches on, the 15 labeled PRs in `fixtures/` run without network calls to GitHub or Snowflake. A DigitalOcean key is still required for the judge. The page chip shows whether Snowflake data came `snowflake`, `cache`, or `unavailable`.
+
+### Score the labeled set
+
+```powershell
+$env:PRISM_USE_CACHE = "1"
+$env:SNOWFLAKE_DISABLED = "0"
+.\.venv\Scripts\python.exe eval\run_eval.py
+```
+
+That uses cached PR payloads and live author activity when Snowflake credentials are set.
 ## Limitations
 
 - Public pull requests only.
