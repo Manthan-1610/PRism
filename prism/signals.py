@@ -64,8 +64,11 @@ def _size(pr: PullRequest) -> Signal:
 def _has_tests(pr: PullRequest) -> Signal:
     tested = [item.filename for item in pr.files if _is_test_path(item.filename)]
     checked = len(pr.files)
-    if tested:
-        detail = f"test file present: {tested[0]}"
+    in_suite = [name for name in tested if _in_test_dir(name)]
+    if in_suite:
+        detail = f"test file in the test suite: {in_suite[0]}"
+    elif tested:
+        detail = f"test file {tested[0]} is a standalone file outside any tests/ directory"
     elif pr.changed_files > checked:
         detail = f"no test file among the first {checked} of {pr.changed_files} files"
     else:
@@ -113,6 +116,11 @@ def _changed_lines(pr: PullRequest) -> list[str]:
             if line.startswith("+") or line.startswith("-"):
                 changed.append(line[1:])
     return changed
+
+
+def _in_test_dir(filename: str) -> bool:
+    dirs = filename.lower().split("/")[:-1]
+    return any(part in {"test", "tests", "__tests__", "spec", "e2e"} for part in dirs)
 
 
 def _is_test_path(filename: str) -> bool:
