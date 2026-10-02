@@ -21,7 +21,7 @@ from prism.contract import (
     TriageResponse,
 )
 from prism.context import repo_context
-from prism.ingest import fetch_pr
+from prism.ingest import IngestError, fetch_pr
 from prism.judge import judge
 from prism.signals import extract_signals
 
@@ -111,6 +111,8 @@ def triage(body: TriageRequest) -> TriageResponse:
     except NotImplementedError:
         logger.info("stage extract_signals fell back to mock")
         signals = []
+    except IngestError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
 
     try:
         context = repo_context(pr.author, f"{pr.owner}/{pr.repo}")
@@ -123,6 +125,8 @@ def triage(body: TriageRequest) -> TriageResponse:
     except NotImplementedError:
         logger.info("stage judge fell back to mock")
         response = EXAMPLE_RESPONSE
+    except RuntimeError as exc:
+        raise HTTPException(status_code=502, detail=f"Model could not judge this PR: {exc}")
 
     summarized = summarize_signals(signals, context)
     return response.model_copy(
