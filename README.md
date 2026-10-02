@@ -177,8 +177,8 @@ That uses cached PR payloads and live author activity when Snowflake credentials
 | `eval/run_eval.py` | Manthan | Accuracy and cost |
 | `prism/api.py` | Rohith | FastAPI wiring |
 | `skill/prism-triage/` | Rohith | Agent skill |
-| `web/` | Chahat | Verdict screen |
-| `eval/labeled.csv` | Chahat | 15 labeled PR URLs |
+| `web/` | Rohith | Verdict screen |
+| `eval/labeled.csv` | Manthan | 15 labeled PR URLs |
 
 ## License
 
