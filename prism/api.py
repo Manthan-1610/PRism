@@ -25,11 +25,12 @@ from prism.ingest import IngestError, fetch_pr
 from prism.judge import judge
 from prism.signals import extract_signals
 
-load_dotenv()
+ROOT = Path(__file__).resolve().parents[1]
+load_dotenv(ROOT / ".env")
 
 logger = logging.getLogger("prism.api")
+logging.basicConfig(level=logging.INFO)
 
-ROOT = Path(__file__).resolve().parents[1]
 WEB = ROOT / "web"
 
 # size -> lines_changed (int); the rest are bool flags carried straight through.

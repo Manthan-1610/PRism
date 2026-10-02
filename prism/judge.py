@@ -20,9 +20,8 @@ from prism.contract import (
     Verdict,
 )
 
-load_dotenv()
-
 ROOT = Path(__file__).resolve().parents[1]
+load_dotenv(ROOT / ".env")
 RUBRIC_PATH = ROOT / "skill" / "prism-triage" / "references" / "rubric.md"
 BASE_URL = "https://inference.do-ai.run/v1"
 
@@ -91,8 +90,10 @@ def build_user_payload(
         "changed_files": pr.changed_files,
         "signals": [s.model_dump() for s in signals],
         "snowflake_context": {
+            "dataset": context.dataset,
             "author_pr_events_7d": context.author_pr_events_7d,
             "repo_pr_events_7d": context.repo_pr_events_7d,
+            "source": context.source,
         },
         "files": [],
     }
@@ -116,18 +117,52 @@ def build_user_payload(
     return json.dumps(payload)
 
 
+def _escape_control_chars(text: str) -> str:
+    """Escape raw control characters inside JSON strings.
+
+    Small models often put literal newlines in contributor_reply. json.loads
+    rejects those as Invalid control character, so repair them here.
+    """
+    out: list[str] = []
+    in_string = False
+    escaped = False
+    for ch in text:
+        if escaped:
+            out.append(ch)
+            escaped = False
+            continue
+        if ch == "\\" and in_string:
+            out.append(ch)
+            escaped = True
+            continue
+        if ch == '"':
+            in_string = not in_string
+            out.append(ch)
+            continue
+        if in_string and ord(ch) < 0x20:
+            if ch == "\n":
+                out.append("\\n")
+            elif ch == "\r":
+                out.append("\\r")
+            elif ch == "\t":
+                out.append("\\t")
+            else:
+                out.append(f"\\u{ord(ch):04x}")
+            continue
+        out.append(ch)
+    return "".join(out)
+
+
 def parse_json(text: str) -> dict:
     cleaned = text.strip()
     fence = re.match(r"^```(?:json)?\s*(.*?)\s*```$", cleaned, re.DOTALL)
     if fence:
         cleaned = fence.group(1)
-    try:
-        return json.loads(cleaned)
-    except json.JSONDecodeError:
-        start, end = cleaned.find("{"), cleaned.rfind("}")
-        if start == -1 or end <= start:
-            raise
-        return json.loads(cleaned[start : end + 1])
+    start, end = cleaned.find("{"), cleaned.rfind("}")
+    if start != -1 and end > start:
+        cleaned = cleaned[start : end + 1]
+    cleaned = _escape_control_chars(cleaned)
+    return json.loads(cleaned)
 
 
 def _ask(model: str, tier: str, payload: str) -> ModelResult:

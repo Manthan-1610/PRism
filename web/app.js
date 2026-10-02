@@ -124,7 +124,7 @@ function render(data) {
   }
 
   const s = data.signals;
-  const ctx = data.snowflake_context;
+  const ctx = data.snowflake_context || {};
   const facts = [
     ["Lines changed", s.lines_changed],
     ["Tests included", yesNo(s.has_tests)],
@@ -154,11 +154,14 @@ function render(data) {
   note.textContent = match ? match[1] : "";
 
   const meta = $("#meta");
+  const snowflakeLabel = ctx.source === "unavailable"
+    ? "unavailable (check SNOWFLAKE_* or cache)"
+    : `${ctx.dataset || "Snowflake"} (${ctx.source || "unknown"})`;
   meta.replaceChildren(
     chip("Model", data.model_used),
     chip("Escalated", data.escalated ? "yes" : "no"),
     chip("Cost", `$${Number(data.cost_usd).toFixed(4)}`),
-    chip("Snowflake", `${ctx.dataset} (${ctx.source})`),
+    chip("Snowflake", snowflakeLabel),
   );
 
   result.hidden = false;

@@ -7,6 +7,7 @@ The SQL file is parameterized. Author and repo are never interpolated.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 from pathlib import Path
@@ -15,27 +16,50 @@ from dotenv import load_dotenv
 
 from prism.contract import SnowflakeContext
 
-load_dotenv()
-
 ROOT = Path(__file__).resolve().parents[1]
+load_dotenv(ROOT / ".env")
+
 SQL_PATH = ROOT / "queries" / "github_context.sql"
 FIXTURES = ROOT / "fixtures"
 DATASET = "Snowflake Public Data (Free)"
 _SAFE = re.compile(r"[^A-Za-z0-9._-]+")
+logger = logging.getLogger("prism.context")
 
 
 def repo_context(author: str, repo_full_name: str) -> SnowflakeContext:
     author = author.strip()
     repo_full_name = repo_full_name.strip()
     if os.environ.get("SNOWFLAKE_DISABLED", "0").strip() == "1":
-        return _from_cache(author, repo_full_name)
+        cached = _from_cache(author, repo_full_name)
+        logger.info(
+            "Snowflake disabled; using %s for %s in %s",
+            cached.source,
+            author,
+            repo_full_name,
+        )
+        return cached
 
     try:
         found = _query_snowflake(author, repo_full_name)
-    except Exception:
+    except Exception as exc:
+        # Never log credential values; the exception type/message is enough.
+        logger.warning(
+            "Snowflake query failed for %s in %s (%s: %s); falling back to cache",
+            author,
+            repo_full_name,
+            type(exc).__name__,
+            exc,
+        )
         return _from_cache(author, repo_full_name)
 
     _write_cache(author, repo_full_name, found)
+    logger.info(
+        "Snowflake live for %s in %s: author=%s repo=%s",
+        author,
+        repo_full_name,
+        found.author_pr_events_7d,
+        found.repo_pr_events_7d,
+    )
     return found
 
 
