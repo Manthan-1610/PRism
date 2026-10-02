@@ -13,6 +13,15 @@ Both are real public PRs and are marked `DEMO` in `eval/labeled.csv`.
 
 Backup if either fails live: [Dolibarr#36044](https://github.com/Dolibarr/dolibarr/pull/36044), a one-line merged fix, should show green `ship_it`.
 
+## Running the demo
+
+- Start the server with `PRISM_USE_CACHE=1` so GitHub is never called live. Each verdict takes about 3 to 6 seconds, or about 20 seconds when it escalates. The page shows a seconds counter while it waits.
+- Click the three buttons under the search box instead of typing URLs. Each button runs one demo PR.
+- You can also open `http://127.0.0.1:8000/?pr=<url>` to land straight on a verdict, which works well as browser bookmarks.
+- Point at three things in order: the colored verdict, the "Why" list, then the reply.
+- Model output can vary slightly between runs. If a verdict comes out differently on stage, say so and show the evidence. Explaining a borderline call honestly lands better with judges than pretending it can't happen.
+- Screenshots of all three verdicts are in `docs/screenshots/` for the slides and as a fallback if the network drops.
+
 ## Lines for "Under the hood" (about 40 seconds)
 
 - "Every verdict comes from open-weight models: Mistral's Ministral 3 14B judges every PR, and Meta's Llama 4 Maverick only steps in when the small model is unsure."
@@ -26,7 +35,7 @@ Backup if either fails live: [Dolibarr#36044](https://github.com/Dolibarr/doliba
 
 - "We labeled 15 real Hacktoberfest-era PRs using the maintainers' own outcomes: spam labels, change requests, and merges."
 - "PRism got 13 of 15 right, at about four hundredths of a cent per PR."
-- "The large model was consulted on 3 of the 15. Once, it tried to approve a flawed PR, and PRism kept the stricter verdict for a human."
+- "The large model was consulted on 3 of the 15. In testing, it tried to approve a flawed PR, and PRism kept the stricter verdict for a human."
 - "We learned that the hard way: when we let the big model win outright, accuracy dropped to 11 of 15, because it trusted the PR's own description. So we changed the rule."
 
 The last line is the strongest one for judges. It shows the eval drove a design decision.

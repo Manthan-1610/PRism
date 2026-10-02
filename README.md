@@ -1,8 +1,34 @@
 # PRism
 
-Triage a public GitHub pull request with deterministic checks, a Snowflake GitHub-events query, and an open-weight model cascade.
+**Open-source AI that protects open source.** PRism reads a GitHub pull request and tells the maintainer, in seconds, whether to ship it, ask for changes, or close it as spam, with the evidence behind the call and a kind reply ready for the contributor.
 
-This tree is a stub. Each module raises `NotImplementedError` until that owner fills it in. `POST /triage` currently returns the example contract so the UI can be built in parallel.
+![PRism flagging a self-promotional README edit as likely spam](docs/screenshots/spam.png)
+
+## The problem
+
+Every October, Hacktoberfest brings maintainers a flood of pull requests. Many are spam: a name added to a README, a renamed file, a description that claims work the diff doesn't contain. Real first-timers get buried in the same queue, and a rushed maintainer can easily turn a well-meant but flawed beginner PR into a bad first experience.
+
+PRism handles the first pass. It flags the noise, explains why, and writes a reply that tells a genuine contributor exactly what to fix.
+
+| Likely spam | Needs work | Ship it |
+| --- | --- | --- |
+| ![Spam verdict](docs/screenshots/spam.png) | ![Needs-work verdict](docs/screenshots/beginner.png) | ![Ship-it verdict](docs/screenshots/ship.png) |
+
+## How it works
+
+```text
+GitHub PR URL
+  → prism/ingest.py     fetch the PR, its files, and patches from the GitHub REST API
+  → prism/signals.py    measure the diff in plain Python: whitespace-only, size, tests,
+                        linked issue, CONTRIBUTING
+  → prism/context.py    query the author's and repo's recent public PR activity in Snowflake
+  → prism/judge.py      open-weight model cascade on DigitalOcean returns a validated verdict
+  → prism/api.py        FastAPI serves POST /triage and the web page
+  → web/                verdict, evidence, measured facts, contributor reply
+  → skill/prism-triage  the same pipeline packaged as an Agent Skill
+```
+
+The model never judges alone. Code measures the diff first, Snowflake adds public history, and the model is told to trust those facts over its own reading.
 
 ## Open-weight models
 
@@ -44,13 +70,67 @@ The script scores small-only against the cascade and prints accuracy, mean cost 
 | Mode | Accuracy | Mean cost per PR | Escalated |
 | --- | --- | --- | --- |
 | Small model only | 13/15 | $0.0004 | 0 |
-| Cascade | 13/15 | $0.0005 | 3 |
+| Cascade | 13/15 | $0.0006 | 3 |
 
-On this set the cascade matches the small model's accuracy rather than beating it. Its value is caution: on 3 of 15 PRs the small model was unsure and a second open model was consulted, and in one of those the large model would have upgraded a flawed PR to `ship_it` and was overruled. Both misses are hard cases: a PR whose body claims a reformat while the diff only adds a comment, and a well-explained single-file solution with no tests.
+On this set the cascade matches the small model's accuracy rather than beating it. Its value is caution: on the 3 PRs where the small model was unsure, a second open model was consulted before the verdict stood. In earlier test runs, the large model tried to upgrade the flawed kornia PR to `ship_it`, and the stricter-only rule kept it at `needs_work`. Both remaining misses are hard cases: a PR whose body claims a reformat while the diff only adds a comment, and a well-explained single-file solution with no tests.
 
 An earlier version let the large model's verdict win outright. It scored 11/15, because Llama 4 Maverick tended to trust a PR's own description. That result is why escalation can now only make verdicts stricter. Qwen 3.5 397B was also tried as the escalation model and timed out on this endpoint.
 
-## Who owns what
+## Snowflake
+
+PRism uses Snowflake for the one thing a single PR can't show: what the author and the repo have been doing across public GitHub.
+
+- **Dataset:** the public GitHub events view `SNOWFLAKE_PUBLIC_DATA_PAID.PUBLIC_DATA.GITHUB_EVENTS`, using `TYPE`, `ACTOR_LOGIN`, `REPO_NAME`, and `CREATED_AT_TIMESTAMP`.
+- **Query:** `queries/github_context.sql` counts `PullRequestEvent` rows for the author and for the repo over the last 7 days. Author and repo are bound as parameters, never formatted into the SQL.
+- **How it's used:** the author's count becomes the `author_pr_events_7d` fact. An author opening 10 or more PRs a week on a tiny diff is one of the cascade's escalation triggers.
+- **Fallback:** each result is cached under `fixtures/`, so the demo runs when Snowflake is unreachable. The page shows whether a result came live (`snowflake`), from the cache (`cache`), or not at all (`unavailable`).
+
+## Agent skill
+
+`skill/prism-triage/` follows the Agent Skills open standard: `SKILL.md` with `name` and `description` frontmatter, a `scripts/` folder, and a `references/` folder holding the rubric. Any agent that supports skills can triage a PR with:
+
+```powershell
+python skill/prism-triage/scripts/triage.py https://github.com/owner/repo/pull/123
+```
+
+## Run it
+
+Requires Python 3.11 or newer.
+
+```powershell
+py -3.11 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+copy .env.example .env
+```
+
+Fill in `.env`:
+
+| Key | What it is |
+| --- | --- |
+| `GITHUB_TOKEN` | GitHub token with read access to public repositories |
+| `MODEL_ACCESS_KEY` | DigitalOcean model access key |
+| `SMALL_MODEL`, `LARGE_MODEL` and the four `*_PER_MILLION` prices | Already set in `.env.example` comments; see the models table above |
+| `SNOWFLAKE_*` | Snowflake account, user, password, warehouse, database, schema, and role |
+
+Start the server and open `http://127.0.0.1:8000`:
+
+```powershell
+.\.venv\Scripts\python.exe -m uvicorn prism.api:app --port 8000
+```
+
+Without Snowflake or GitHub access, set `PRISM_USE_CACHE=1` and `SNOWFLAKE_DISABLED=1` in `.env`. The 15 labeled PRs in `fixtures/` then run without network calls to GitHub or Snowflake. A DigitalOcean key is still needed for the model.
+
+Link straight to a verdict with `http://127.0.0.1:8000/?pr=<pull request URL>`.
+
+## Limitations
+
+- Public pull requests only.
+- The judge reads at most 20 files and the first 500 characters of each patch.
+- Author activity covers only the last 7 days of public GitHub events.
+- The evaluation set is 15 PRs. It's a sanity check for a hackathon, not a benchmark.
+- The model can still be wrong. PRism is a first pass for the maintainer, not an auto-closer.
+
+## Team
 
 | Path | Owner | Job |
 | --- | --- | --- |
@@ -67,22 +147,6 @@ An earlier version let the large model's verdict win outright. It scored 11/15, 
 | `web/` | Chahat | Verdict screen |
 | `eval/labeled.csv` | Chahat | 15 labeled PR URLs |
 
-## Run the stub
+## License
 
-```powershell
-py -3.11 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-copy .env.example .env
-.\.venv\Scripts\python.exe -m uvicorn prism.api:app --reload --port 8000
-```
-
-Open `http://127.0.0.1:8000`.
-
-## Pipeline to wire in `prism/api.py`
-
-```python
-pr = fetch_pr(body.pr_url)
-signals = extract_signals(pr)
-context = repo_context(pr.author, f"{pr.owner}/{pr.repo}")
-return judge(pr, signals, context)
-```
+MIT. See `LICENSE`.

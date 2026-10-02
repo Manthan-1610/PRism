@@ -3,29 +3,84 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>PRism</title>
+  <title>PRism · pull request triage</title>
   <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
-  <main>
-    <h1>PRism</h1>
-    <form id="triage-form">
-      <label for="pr-url">Pull request URL</label>
-      <input id="pr-url" name="pr_url" type="url" placeholder="https://github.com/owner/repo/pull/1" required>
+  <header class="masthead">
+    <div class="wrap">
+      <h1>PRism</h1>
+      <p class="tagline">Open-weight AI triage for Hacktoberfest pull requests</p>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <form id="triage-form" class="search">
+      <label for="pr-url" class="visually-hidden">Pull request URL</label>
+      <input id="pr-url" name="pr_url" type="url" required autocomplete="off"
+             placeholder="https://github.com/owner/repo/pull/123">
       <button id="submit" type="submit">Triage</button>
     </form>
-    <p id="status" role="status"></p>
-    <section id="result" hidden>
-      <p id="verdict" class="verdict"></p>
-      <ul id="evidence"></ul>
-      <h2>Reply to the contributor</h2>
-      <pre id="reply"></pre>
-      <button id="copy-reply" type="button">Copy reply</button>
-      <h2>Maintainer summary</h2>
-      <p id="summary"></p>
-      <p id="meta"></p>
+
+    <div class="demos" aria-label="Demo pull requests">
+      <span class="demos-label">Try a real PR:</span>
+      <button type="button" class="demo" data-url="https://github.com/scikit-learn/scikit-learn/pull/32624">scikit-learn #32624</button>
+      <button type="button" class="demo" data-url="https://github.com/kornia/kornia/pull/3328">kornia #3328</button>
+      <button type="button" class="demo" data-url="https://github.com/Dolibarr/dolibarr/pull/36044">Dolibarr #36044</button>
+    </div>
+
+    <div id="loading" class="loading" hidden>
+      <span class="spinner" aria-hidden="true"></span>
+      <span>Reading the PR, measuring the diff, checking public history, asking the model…</span>
+      <span id="elapsed" class="elapsed"></span>
+    </div>
+
+    <div id="error" class="error" role="alert" hidden></div>
+
+    <section id="result" class="result" hidden aria-live="polite">
+      <div id="banner" class="banner">
+        <div>
+          <p class="banner-label">Verdict</p>
+          <p id="verdict" class="verdict"></p>
+          <a id="pr-link" class="pr-link" target="_blank" rel="noopener"></a>
+        </div>
+        <div class="confidence">
+          <p class="banner-label">Confidence</p>
+          <p id="confidence-value" class="confidence-value"></p>
+          <div class="meter"><div id="confidence-bar" class="meter-fill"></div></div>
+        </div>
+      </div>
+
+      <div class="grid">
+        <article class="card">
+          <h2>Why</h2>
+          <ul id="evidence" class="evidence"></ul>
+        </article>
+
+        <article class="card">
+          <h2>Measured facts</h2>
+          <dl id="facts" class="facts"></dl>
+        </article>
+      </div>
+
+      <article class="card reply-card">
+        <div class="card-head">
+          <h2>Reply to the contributor</h2>
+          <button id="copy-reply" type="button" class="secondary">Copy reply</button>
+        </div>
+        <p id="reply" class="reply"></p>
+      </article>
+
+      <article class="card">
+        <h2>For the maintainer</h2>
+        <p id="summary" class="summary"></p>
+        <p id="second-opinion" class="second-opinion" hidden></p>
+      </article>
+
+      <footer id="meta" class="meta"></footer>
     </section>
   </main>
+
   <script src="/static/app.js"></script>
 </body>
 </html>

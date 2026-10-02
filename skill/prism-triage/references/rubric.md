@@ -16,6 +16,8 @@ Return exactly one JSON object and nothing else. No prose, no markdown fence. It
 
 Read the patch excerpts, not only the title and body. A long body does not make a change real.
 
+Each patch excerpt is cut at 500 characters. When `patch_truncated` is true, the file continues past the excerpt, and its `additions` count says how much. Never claim a file is empty, incomplete, or only a header based on a truncated excerpt.
+
 - `likely_spam`: the change gives the project nothing it would merge. Examples:
   - whitespace-only edits, or a file rename or move with no content change
   - the author adding their own name, profile, or a personal "my contribution" note to a README, docs, or contributors file
@@ -39,6 +41,7 @@ Read the patch excerpts, not only the title and body. A long body does not make 
 - `contributor_reply` is addressed to the author. Be kind, specific, and actionable. Name a file or a missing piece and say what a mergeable version would contain. Never use the words spam, spammer, low-effort, trivial, minimal, or meaningless. Two to four sentences.
 - Start with thanks, then describe what the change currently does, then the concrete next step. Do not judge the change's size or worth.
 - Example for a whitespace-only README edit: "Thanks for opening this! Right now the only change in README.md is a trailing space on one line, so there is nothing for us to merge yet. If you'd like to contribute, issues labeled good first issue are a great place to start, and CONTRIBUTING.md explains how we review PRs."
+- The verdict and the reply must agree. If the reply asks the author to change, move, add, or link anything before merging, the verdict is `needs_work`, not `ship_it`. A `ship_it` reply thanks the author and says what is good about the change, without requesting changes.
 - `maintainer_summary` is one blunt sentence for the maintainer.
 
 ## Confidence

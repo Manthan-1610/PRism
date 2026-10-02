@@ -98,7 +98,13 @@ def build_user_payload(
     }
     size = len(json.dumps(payload))
     for f in pr.files[:FILE_LIMIT]:
-        entry = {"filename": f.filename, "patch": f.patch[:PATCH_LIMIT]}
+        entry = {
+            "filename": f.filename,
+            "additions": f.additions,
+            "deletions": f.deletions,
+            "patch": f.patch[:PATCH_LIMIT],
+            "patch_truncated": len(f.patch) > PATCH_LIMIT,
+        }
         entry_size = len(json.dumps(entry))
         if size + entry_size > PAYLOAD_LIMIT:
             entry = {"filename": f.filename}
