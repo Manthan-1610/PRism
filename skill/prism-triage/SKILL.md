@@ -12,7 +12,7 @@ Run this from the repository root:
 python skill/prism-triage/scripts/triage.py https://github.com/owner/repo/pull/123
 ```
 
-Read the rubric in `references/rubric.md` before changing a verdict.
+`references/rubric.md` is the scoring rubric the judge uses to produce a verdict — read it if you need to explain why a verdict came out the way it did.
 
 Show the user three things from the JSON result:
 

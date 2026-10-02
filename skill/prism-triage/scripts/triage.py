@@ -4,6 +4,7 @@ Usage from the repo root:
     python skill/prism-triage/scripts/triage.py <pr_url>
 """
 
+import json
 import sys
 from pathlib import Path
 
@@ -15,17 +16,18 @@ if str(ROOT) not in sys.path:
 def main() -> None:
     if len(sys.argv) != 2:
         print("usage: python skill/prism-triage/scripts/triage.py <pr_url>", file=sys.stderr)
-        raise SystemExit(2)
+        raise SystemExit(1)
     pr_url = sys.argv[1]
-    # from prism.ingest import fetch_pr
-    # from prism.signals import extract_signals
-    # from prism.context import repo_context
-    # from prism.judge import judge
-    # pr = fetch_pr(pr_url)
-    # signals = extract_signals(pr)
-    # context = repo_context(pr.author, f"{pr.owner}/{pr.repo}")
-    # print(judge(pr, signals, context).model_dump_json(indent=2))
-    print(f"not implemented yet: {pr_url}")
+
+    from prism.api import triage
+    from prism.contract import TriageRequest
+
+    try:
+        response = triage(TriageRequest(pr_url=pr_url))
+        print(response.model_dump_json(indent=2))
+    except Exception as exc:
+        print(json.dumps({"error": getattr(exc, "detail", str(exc))}), file=sys.stderr)
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":
