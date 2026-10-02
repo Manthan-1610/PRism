@@ -15,6 +15,12 @@ _ISSUE = re.compile(
     r"(?i)(?:\b(?:fix(?:e[sd])?|close[sd]?|resolve[sd]?)\s+#\d+)|(?:#\d+)"
 )
 _TEST_MARKERS = ("/test", "test_", "_test.", ".spec.", "/tests/")
+_HTML_COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
+
+
+def _author_text(body: str | None) -> str:
+    """PR body without template comments, which are not written by the author."""
+    return _HTML_COMMENT.sub("", body or "").strip()
 
 
 def extract_signals(pr: PullRequest) -> list[Signal]:
@@ -68,16 +74,16 @@ def _has_tests(pr: PullRequest) -> Signal:
 
 
 def _linked_issue(pr: PullRequest) -> Signal:
-    matched = _ISSUE.search(pr.body or "")
+    matched = _ISSUE.search(f"{pr.title}\n{_author_text(pr.body)}")
     if matched:
         return Signal(
             signal="linked_issue",
-            detail=f"body links an issue ({matched.group(0)})",
+            detail=f"title or body links an issue ({matched.group(0)})",
             value=True,
         )
     return Signal(
         signal="linked_issue",
-        detail="body does not link an issue",
+        detail="title and body do not link an issue",
         value=False,
     )
 
@@ -89,7 +95,8 @@ def _followed_contributing(pr: PullRequest, has_file: bool | None) -> Signal:
         else:
             detail = "CONTRIBUTING check unavailable, so this check does not penalize the author"
         return Signal(signal="followed_contributing", detail=detail, value=True)
-    followed = "- [x]" in (pr.body or "") or len(pr.body or "") > 200
+    text = _author_text(pr.body)
+    followed = "- [x]" in text.lower() or len(text) > 200
     if followed:
         detail = "body is long enough or checks a CONTRIBUTING box"
     else:

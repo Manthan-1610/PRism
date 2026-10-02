@@ -25,6 +25,8 @@ Both run on DigitalOcean serverless inference at `https://inference.do-ai.run/v1
    - confidence below 0.6
    - verdict `ship_it` on a whitespace-only diff
    - verdict `ship_it` from an author with 10 or more PR events in 7 days on a diff of 5 lines or fewer
+
+   An escalation can only make a verdict stricter. If the large model would move an unsure verdict toward `ship_it`, PRism keeps the stricter verdict and notes the disagreement in the maintainer summary, so no PR is waved through on a second opinion alone. Each model call times out after 45 seconds, and a failed escalation falls back to the small model's verdict.
 4. **Cost and provenance.** Every response records which model produced the verdict, whether it escalated, and the dollar cost computed from token usage.
 
 The contributor reply is written to be kind and specific. It names the file or missing piece, says what a mergeable version would contain, and never calls the author a spammer.
@@ -41,8 +43,12 @@ The script scores small-only against the cascade and prints accuracy, mean cost 
 
 | Mode | Accuracy | Mean cost per PR | Escalated |
 | --- | --- | --- | --- |
-| Small model only | pending | pending | 0 |
-| Cascade | pending | pending | pending |
+| Small model only | 13/15 | $0.0004 | 0 |
+| Cascade | 13/15 | $0.0005 | 3 |
+
+On this set the cascade matches the small model's accuracy rather than beating it. Its value is caution: on 3 of 15 PRs the small model was unsure and a second open model was consulted, and in one of those the large model would have upgraded a flawed PR to `ship_it` and was overruled. Both misses are hard cases: a PR whose body claims a reformat while the diff only adds a comment, and a well-explained single-file solution with no tests.
+
+An earlier version let the large model's verdict win outright. It scored 11/15, because Llama 4 Maverick tended to trust a PR's own description. That result is why escalation can now only make verdicts stricter. Qwen 3.5 397B was also tried as the escalation model and timed out on this endpoint.
 
 ## Who owns what
 

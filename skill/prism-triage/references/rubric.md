@@ -14,9 +14,19 @@ Return exactly one JSON object and nothing else. No prose, no markdown fence. It
 
 ## Verdicts
 
-- `likely_spam`: the change is whitespace-only, a name or badge drop, a trivial edit with an empty or unrelated body, or `author_pr_events_7d` is high (10 or more) while the diff is tiny (5 lines or fewer).
-- `needs_work`: the change looks like a real, focused attempt, but tests are missing for a code change, no issue is linked, or the repo has a CONTRIBUTING file and the body ignores it.
-- `ship_it`: the diff is focused, and at least one of these is true: tests were added, an issue is linked, or it is a complete documentation change with a real explanation.
+Read the patch excerpts, not only the title and body. A long body does not make a change real.
+
+- `likely_spam`: the change gives the project nothing it would merge. Examples:
+  - whitespace-only edits, or a file rename or move with no content change
+  - the author adding their own name, profile, or a personal "my contribution" note to a README, docs, or contributors file
+  - a body that claims work the diff does not contain, such as claiming a reformat while the diff only adds a comment
+  - `author_pr_events_7d` of 10 or more on a diff of 5 lines or fewer
+- `needs_work`: a real attempt at something the project could use, with a concrete problem. Examples:
+  - unrelated files are included: editor settings, `.DS_Store`, build output, or files from a different feature
+  - tests are a standalone script outside the project's test directory, or are missing for a large code change
+  - the PR does more than its title says
+  - a large change with an empty or placeholder description
+- `ship_it`: a focused change the maintainer could merge as is. An issue linked in the title or body, tests in the project's test suite, or a clear explanation of a small fix each count. A small, well-explained bug fix is `ship_it` even when `followed_contributing` is false. Missing tests alone do not make a small, focused change `needs_work` when it links an issue or clearly explains the fix.
 
 ## Evidence
 
@@ -33,5 +43,7 @@ Return exactly one JSON object and nothing else. No prose, no markdown fence. It
 
 ## Confidence
 
-- Use 0.8 or higher only when the signals clearly agree with the verdict.
-- Use below 0.6 when the case is ambiguous or the signals conflict.
+- Start from 0.7.
+- Raise it to 0.85 or higher only when every signal and the patch point to the same verdict.
+- Lower it below 0.6 when any signal points to a different verdict, or when you are choosing between two verdicts.
+- Do not default to 0.95.

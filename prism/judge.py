@@ -26,7 +26,11 @@ ROOT = Path(__file__).resolve().parents[1]
 RUBRIC_PATH = ROOT / "skill" / "prism-triage" / "references" / "rubric.md"
 BASE_URL = "https://inference.do-ai.run/v1"
 
+# An escalation can make a verdict stricter, never more lenient.
+STRICTNESS = {"ship_it": 0, "needs_work": 1, "likely_spam": 2}
+
 MAX_REPAIRS = 2
+MODEL_TIMEOUT_S = 45
 ESCALATE_BELOW = 0.6
 HIGH_VELOCITY = 10
 TINY_DIFF = 5
@@ -52,7 +56,12 @@ class ModelResult(BaseModel):
 
 @lru_cache(maxsize=1)
 def client() -> OpenAI:
-    return OpenAI(base_url=BASE_URL, api_key=os.environ["MODEL_ACCESS_KEY"])
+    return OpenAI(
+        base_url=BASE_URL,
+        api_key=os.environ["MODEL_ACCESS_KEY"],
+        timeout=MODEL_TIMEOUT_S,
+        max_retries=1,
+    )
 
 
 @lru_cache(maxsize=1)
@@ -224,7 +233,16 @@ def judge(
             pr, response_signals, context, small, True, small.cost_usd,
             summary_note=f"(Escalation failed: {exc})",
         )
-    return _response(pr, response_signals, context, large, True, small.cost_usd + large.cost_usd)
+    total = small.cost_usd + large.cost_usd
+    if STRICTNESS[large.verdict.verdict] < STRICTNESS[small.verdict.verdict]:
+        return _response(
+            pr, response_signals, context, small, True, total,
+            summary_note=(
+                f"(Second opinion from {large.model} said {large.verdict.verdict}; "
+                f"kept the stricter verdict for a human to confirm.)"
+            ),
+        )
+    return _response(pr, response_signals, context, large, True, total)
 
 
 def _fake_cases() -> list[tuple[str, PullRequest, list[Signal], SnowflakeContext]]:
